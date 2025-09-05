@@ -69,6 +69,10 @@ class PlayerService : MediaSessionService() {
     private val serviceScope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSession: MediaSession? = null
 
+    // --- Volume Amplification ---
+    private var loudnessEnhancer: android.media.audiofx.LoudnessEnhancer? = null
+
+
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
 
@@ -166,16 +170,36 @@ class PlayerService : MediaSessionService() {
             }
 
             if (playbackState == Player.STATE_READY) {
-                mediaSession?.player?.let {
+                mediaSession?.player?.let { player ->
+                    // --- Volume Amplification ---
+
+                    try {
+                        // release old one first if it exists
+                        loudnessEnhancer?.release()
+
+                        // create a new one
+                        loudnessEnhancer = android.media.audiofx.LoudnessEnhancer(player.audioSessionId).apply {
+                            setTargetGain(3000) // +30 dB
+                            enabled = true
+                        }
+
+                        android.util.Log.d("PlayerService", "✅ LoudnessEnhancer applied at +30 dB")
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
+
+                    // keep existing code
                     serviceScope.launch {
                         mediaRepository.updateMediumLastPlayedTime(
-                            uri = it.currentMediaItem?.mediaId ?: return@launch,
+                            uri = player.currentMediaItem?.mediaId ?: return@launch,
                             lastPlayedTime = System.currentTimeMillis(),
                         )
                     }
                 }
             }
         }
+
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             super.onPlayWhenReadyChanged(playWhenReady, reason)
@@ -423,6 +447,9 @@ class PlayerService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
+
         super.onDestroy()
         serviceScope.cancel()
         subtitleCacheDir.deleteFiles()
