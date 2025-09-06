@@ -34,6 +34,7 @@ class VolumeManager(private val audioManager: AudioManager) {
         currentVolume = volume.coerceIn(0f, maxVolume.toFloat())
 
         if (currentVolume <= maxStreamVolume) {
+            // Normal range 0–100%
             loudnessEnhancer?.enabled = false
             audioManager.setStreamVolume(
                 AudioManager.STREAM_MUSIC,
@@ -41,14 +42,23 @@ class VolumeManager(private val audioManager: AudioManager) {
                 if (showVolumePanel && audioManager.isWiredHeadsetOn) AudioManager.FLAG_SHOW_UI else 0,
             )
         } else {
+            // Boost range 100–200%
+            audioManager.setStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                maxStreamVolume, // keep system volume at max
+                0
+            )
             try {
                 loudnessEnhancer?.enabled = true
-                loudnessEnhancer?.setTargetGain(currentLoudnessGain.toInt())
+                val boostPercent = ((currentVolume - maxStreamVolume) / maxStreamVolume) // 0.0–1.0
+                val targetGain = (boostPercent * MAX_VOLUME_BOOST).toInt()
+                loudnessEnhancer?.setTargetGain(targetGain)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
+
 
     fun increaseVolume(showVolumePanel: Boolean = false) {
         setVolume(currentVolume + 1, showVolumePanel)
