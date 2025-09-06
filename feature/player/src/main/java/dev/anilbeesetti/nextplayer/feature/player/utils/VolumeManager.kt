@@ -22,10 +22,12 @@ class VolumeManager(private val audioManager: AudioManager) {
 
     var currentVolume = currentStreamVolume.toFloat()
         private set
-    val maxVolume get() = maxStreamVolume.times(loudnessEnhancer?.let { 2 } ?: 1)
+    val maxVolume get() = maxStreamVolume * 2
+
 
     val currentLoudnessGain get() = (currentVolume - maxStreamVolume) * (MAX_VOLUME_BOOST / maxStreamVolume)
-    val volumePercentage get() = (currentVolume / maxStreamVolume.toFloat()).times(100).toInt()
+    val volumePercentage get() = (currentVolume / maxVolume.toFloat()).times(100).toInt()
+
 
     @Suppress("DEPRECATION")
     fun setVolume(volume: Float, showVolumePanel: Boolean = false) {
@@ -57,6 +59,6 @@ class VolumeManager(private val audioManager: AudioManager) {
     }
 
     companion object {
-        const val MAX_VOLUME_BOOST = 2000
+        const val MAX_VOLUME_BOOST = 3000
     }
 }

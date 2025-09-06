@@ -108,6 +108,9 @@ import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import android.animation.ArgbEvaluator
+
+
 
 @SuppressLint("UnsafeOptInUsageError")
 @AndroidEntryPoint
@@ -1029,9 +1032,39 @@ class PlayerActivity : AppCompatActivity() {
         hideVolumeIndicatorJob?.cancel()
         with(binding) {
             volumeGestureLayout.visibility = View.VISIBLE
-            volumeProgressBar.max = volumeManager.maxVolume.times(100)
-            volumeProgressBar.progress = volumeManager.currentVolume.times(100).toInt()
-            volumeProgressText.text = volumeManager.volumePercentage.toString()
+
+            val percent = ((volumeManager.currentVolume / volumeManager.maxVolume) * 200).toInt()
+            volumeProgressBar.max = 200
+            volumeProgressBar.progress = percent
+            volumeProgressText.text = "$percent%"
+
+            // --- Snap resistance at 100% ---
+            val resistanceZone = 3
+            if (percent in (100 - resistanceZone)..(100 + resistanceZone)) {
+                volumeProgressBar.progress = 100
+                volumeProgressText.text = "100%"
+
+                // Haptic feedback when snapping at 100%
+                volumeProgressBar.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            }
+
+            // --- Gradient color change ---
+            if (percent > 100) {
+                val fraction = (percent - 100) / 100f
+                val color = android.animation.ArgbEvaluator().evaluate(
+                    fraction,
+                    android.graphics.Color.parseColor("#FFA500"), // Orange at 100%
+                    android.graphics.Color.RED                   // Red at 200%
+                ) as Int
+                volumeProgressBar.progressDrawable.setTint(color)
+            } else {
+                volumeProgressBar.progressDrawable.setTint(android.graphics.Color.WHITE)
+            }
+
+            android.util.Log.d(
+                "PlayerActivity",
+                "Volume=${volumeManager.currentVolume}, Max=${volumeManager.maxVolume}, percent=$percent, ProgressBar max=${volumeProgressBar.max}, progress=${volumeProgressBar.progress}"
+            )
         }
     }
 
